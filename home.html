@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>HOME • AS400 PRO</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="HOME" />
+
+  <style>
+    :root{
+      --bg:#000;
+      --ph:#00ff66;
+      --ph2:#00cc55;
+      --grid: rgba(0,255,102,.06);
+      --frame: rgba(0,255,102,.22);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    html,body{height:100%; margin:0; background:var(--bg); color:var(--ph); font-family:var(--mono);}
+    body:before{
+      content:""; position:fixed; inset:0;
+      background:repeating-linear-gradient(to bottom,
+        rgba(255,255,255,0.03), rgba(255,255,255,0.03) 1px,
+        rgba(0,0,0,0) 3px, rgba(0,0,0,0) 5px);
+      pointer-events:none; mix-blend-mode:overlay; opacity:.25;
+    }
+    body:after{
+      content:""; position:fixed; inset:0;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events:none; opacity:.35;
+    }
+    .wrap{min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box;}
+    .terminal{
+      width:min(1040px,100%);
+      border:1px solid var(--frame);
+      box-shadow: 0 0 0 2px rgba(0,255,102,.06), 0 0 28px rgba(0,255,102,.10);
+      padding:18px; box-sizing:border-box;
+      background:rgba(0,0,0,.65);
+    }
+    .topbar{display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:12px;}
+    .title{font-size:16px; letter-spacing:.08em; text-transform:uppercase;}
+    .status{font-size:13px; color:var(--ph2); letter-spacing:.04em; display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .pill{border:1px solid rgba(0,255,102,.20); padding:2px 8px; border-radius:999px; color:var(--ph2);}
+    .prompt{font-size:14px; margin: 6px 0 12px 0; color:var(--ph);}
+    .prompt .dim{color:var(--ph2);}
+    .cursor{display:inline-block; width:10px; margin-left:6px; animation: blink 1s steps(1) infinite;}
+    @keyframes blink{50%{opacity:0;}}
+    .toolbar{
+      display:flex; gap:10px; flex-wrap:wrap;
+      margin: 10px 0 14px 0;
+    }
+    input, select, button{
+      font-family:var(--mono);
+      background:#000;
+      color:var(--ph);
+      border:1px solid rgba(0,255,102,.22);
+      padding:8px 10px;
+      font-size:14px;
+      outline:none;
+    }
+    input::placeholder{color:rgba(0,255,102,.45);}
+    button{cursor:pointer}
+    button:hover{background:rgba(0,255,102,.06);}
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap:10px 14px;
+    }
+    @media (max-width: 720px){ .grid{grid-template-columns:1fr;} }
+    .item{
+      border:1px solid rgba(0,255,102,.18);
+      padding:10px 12px;
+      background:rgba(0,0,0,.55);
+      box-shadow: inset 0 0 0 1px rgba(0,255,102,.05);
+    }
+    .item:hover{background:rgba(0,255,102,.06); border-color: rgba(0,255,102,.35); box-shadow: 0 0 14px rgba(0,255,102,.12);}
+    .item.selected{
+      border-color: rgba(0,255,102,.65);
+      box-shadow: 0 0 18px rgba(0,255,102,.20);
+      background:rgba(0,255,102,.04);
+    }
+    a{color:var(--ph); text-decoration:none; display:flex; gap:10px; align-items:center; justify-content:space-between;}
+    .left{display:flex; gap:10px; align-items:center; min-width:0;}
+    .num{color:var(--ph2); width:2.2ch; text-align:right;}
+    .label{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:.04em;}
+    .hint{color:var(--ph2); font-size:12px; opacity:.9; white-space:nowrap;}
+    .footer{margin-top:12px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; color:var(--ph2); font-size:12px;}
+    .kbd{border:1px solid rgba(0,255,102,.20); padding:1px 6px; border-radius:4px;}
+
+    /* Modal editor */
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.75);
+      display:none; align-items:center; justify-content:center; padding:20px;
+    }
+    .modal{
+      width:min(720px, 100%);
+      border:1px solid rgba(0,255,102,.35);
+      background:#000;
+      padding:14px;
+      box-shadow: 0 0 30px rgba(0,255,102,.12);
+    }
+    .modal h2{margin:0 0 10px 0; font-size:16px; letter-spacing:.08em; color:var(--ph);}
+    .row{display:grid; grid-template-columns: 120px 1fr; gap:10px; margin:8px 0; align-items:center;}
+    @media (max-width: 560px){ .row{grid-template-columns:1fr;} }
+    .small{color:var(--ph2); font-size:12px; margin-top:8px;}
+    .modal .actions{display:flex; gap:10px; justify-content:flex-end; margin-top:12px; flex-wrap:wrap;}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="terminal" role="application" aria-label="Home AS400 PRO">
+
+      <div class="topbar">
+        <div class="title">HOME • AS400 PRO</div>
+        <div class="status">
+          <span class="pill" id="clock">--/--/---- --:--</span>
+          <span class="pill" id="count">0 link</span>
+          <span class="pill" id="beepState">BEEP: ON</span>
+        </div>
+      </div>
+
+      <div class="prompt">
+        <span class="dim">C:\&gt;</span>
+        cerca (scrivi), muovi (↑↓←→), apri (Invio), modifica (E), beep (B)
+        <span class="cursor">█</span>
+      </div>
+
+      <div class="toolbar">
+        <input id="q" type="text" placeholder="Cerca… (es. ghigliottina, github, banca)" autocomplete="off" />
+        <select id="cat">
+          <option value="ALL">TUTTE</option>
+          <option value="APP">WEB APP</option>
+          <option value="TOOLS">STRUMENTI</option>
+          <option value="MEDIA">MEDIA</option>
+          <option value="OTHER">ALTRO</option>
+        </select>
+        <button id="btnEdit" type="button">E — Editor</button>
+        <button id="btnAdd" type="button">+ Aggiungi</button>
+        <button id="btnReset" type="button">Reset</button>
+      </div>
+
+      <div class="grid" id="grid"></div>
+
+      <div class="footer">
+        <div>
+          Shortcuts: <span class="kbd">1..9</span> apri item • <span class="kbd">/</span> focus ricerca • <span class="kbd">ESC</span> chiudi editor
+        </div>
+        <div class="dim">
+          Note: i link aggiunti/modificati qui si salvano nel browser (localStorage).
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="modalBack">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Editor link">
+      <h2 id="modalTitle">EDITOR</h2>
+
+      <div class="row">
+        <div>Categoria</div>
+        <select id="mCat">
+          <option value="APP">WEB APP</option>
+          <option value="TOOLS">STRUMENTI</option>
+          <option value="MEDIA">MEDIA</option>
+          <option value="OTHER">ALTRO</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <div>Nome</div>
+        <input id="mName" type="text" placeholder="Es. GHIGLIOTTINA" />
+      </div>
+
+      <div class="row">
+        <div>URL</div>
+        <input id="mUrl" type="text" placeholder="https://…" />
+      </div>
+
+      <div class="row">
+        <div>Hint</div>
+        <input id="mHint" type="text" placeholder="OPEN / ENTER / MAIL / PEC …" />
+      </div>
+
+      <div class="small">
+        Suggerimenti: usa URL completi (https://…). Per GitHub Pages: https://bob0b0.github.io/nomeapp
+      </div>
+
+      <div class="actions">
+        <button id="mDelete" type="button">Elimina</button>
+        <button id="mCancel" type="button">Annulla</button>
+        <button id="mSave" type="button">Salva</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ======= CONFIG DEFAULT (puoi modificarli qui, ma poi hai anche l'Editor) =======
+    const DEFAULT_LINKS = [
+      {cat:"APP",   name:"GHIGLIOTTINA",   url:"https://bob0b0.github.io/ghigliottina", hint:"ENTER"},
+      {cat:"APP",   name:"BUDGETCANTIERI", url:"", hint:"SET"},
+      {cat:"APP",   name:"CDC APP",        url:"", hint:"SET"},
+      {cat:"TOOLS", name:"CHATGPT",        url:"https://chat.openai.com", hint:"OPEN"},
+      {cat:"TOOLS", name:"GITHUB (bob0b0)",url:"https://github.com/bob0b0", hint:"OPEN"},
+      {cat:"MEDIA", name:"YOUTUBE",        url:"https://www.youtube.com", hint:"OPEN"},
+    ];
+
+    // ======= STATE =======
+    const LS_KEY = "as400_home_links_v1";
+    const LS_BEEP = "as400_home_beep_v1";
+
+    let links = [];
+    let filtered = [];
+    let selectedIndex = 0;
+    let beepOn = true;
+    let editingIndex = null; // null = add
+
+    // ======= DOM =======
+    const grid = document.getElementById("grid");
+    const q = document.getElementById("q");
+    const cat = document.getElementById("cat");
+    const count = document.getElementById("count");
+    const beepState = document.getElementById("beepState");
+
+    const modalBack = document.getElementById("modalBack");
+    const modalTitle = document.getElementById("modalTitle");
+    const mCat = document.getElementById("mCat");
+    const mName = document.getElementById("mName");
+    const mUrl = document.getElementById("mUrl");
+    const mHint = document.getElementById("mHint");
+    const mDelete = document.getElementById("mDelete");
+    const mCancel = document.getElementById("mCancel");
+    const mSave = document.getElementById("mSave");
+
+    const btnEdit = document.getElementById("btnEdit");
+    const btnAdd = document.getElementById("btnAdd");
+    const btnReset = document.getElementById("btnReset");
+
+    // ======= UTIL =======
+    function pad(n){ return String(n).padStart(2,'0'); }
+    function tick(){
+      const d = new Date();
+      document.getElementById('clock').textContent =
+        `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}  ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    tick(); setInterval(tick, 1000);
+
+    function saveLinks(){ localStorage.setItem(LS_KEY, JSON.stringify(links)); }
+    function loadLinks(){
+      const raw = localStorage.getItem(LS_KEY);
+      if(raw){
+        try { links = JSON.parse(raw); }
+        catch { links = structuredClone(DEFAULT_LINKS); }
+      } else {
+        links = structuredClone(DEFAULT_LINKS);
+      }
+    }
+    function saveBeep(){ localStorage.setItem(LS_BEEP, beepOn ? "1" : "0"); }
+    function loadBeep(){
+      const raw = localStorage.getItem(LS_BEEP);
+      beepOn = (raw === null) ? true : (raw === "1");
+      renderBeepState();
+    }
+
+    // Beep: piccolo tono (non invasivo)
+    let audioCtx = null;
+    function beep(){
+      if(!beepOn) return;
+      try{
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "square";
+        o.frequency.value = 880;
+        g.gain.value = 0.03;
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start();
+        setTimeout(()=>{ o.stop(); }, 35);
+      }catch(e){ /* ignore */ }
+    }
+
+    function sanitizeUrl(u){
+      u = (u || "").trim();
+      if(!u) return "";
+      // Se l'utente incolla senza schema, proviamo ad aggiungere https://
+      if(!/^https?:\/\//i.test(u) && !/^file:\/\//i.test(u) && !/^http:\/\/localhost/i.test(u) && !/^https:\/\/localhost/i.test(u)){
+        if(u.startsWith("localhost")) u = "http://" + u;
+        else u = "https://" + u;
+      }
+      return u;
+    }
+
+    function renderBeepState(){
+      beepState.textContent = `BEEP: ${beepOn ? "ON" : "OFF"}`;
+    }
+
+    // ======= FILTER + RENDER =======
+    function applyFilter(){
+      const term = q.value.trim().toLowerCase();
+      const c = cat.value;
+
+      filtered = links.filter(x=>{
+        const okCat = (c === "ALL") ? true : x.cat === c;
+        const hay = `${x.name} ${x.url} ${x.hint} ${x.cat}`.toLowerCase();
+        const okTerm = term ? hay.includes(term) : true;
+        return okCat && okTerm;
+      });
+
+      if(selectedIndex >= filtered.length) selectedIndex = Math.max(0, filtered.length-1);
+
+      count.textContent = `${filtered.length} link`;
+      renderGrid();
+    }
+
+    function renderGrid(){
+      grid.innerHTML = "";
+      filtered.forEach((x, i)=>{
+        const num = String(i+1).padStart(2,"0");
+        const div = document.createElement("div");
+        div.className = "item" + (i === selectedIndex ? " selected" : "");
+        const a = document.createElement("a");
+        a.href = x.url ? x.url : "#";
+        a.addEventListener("click", (ev)=>{
+          if(!x.url){
+            ev.preventDefault();
+            beep();
+            openEditor(i); // se manca l'URL, apri editor
+            return;
+          }
+          beep();
+        });
+
+        const left = document.createElement("span");
+        left.className = "left";
+        left.innerHTML = `<span class="num">${num}</span><span class="label">${x.name}</span>`;
+
+        const hint = document.createElement("span");
+        hint.className = "hint";
+        hint.textContent = x.hint || "OPEN";
+
+        a.appendChild(left);
+        a.appendChild(hint);
+        div.appendChild(a);
+
+        div.addEventListener("mouseenter", ()=>{
+          selectedIndex = i;
+          renderGrid();
+        });
+
+        // doppio click = editor
+        div.addEventListener("dblclick", ()=>{
+          beep();
+          openEditor(i);
+        });
+
+        grid.appendChild(div);
+      });
+    }
+
+    // ======= NAVIGATION =======
+    function openSelected(){
+      const x = filtered[selectedIndex];
+      if(!x) return;
+      if(!x.url){
+        beep();
+        openEditor(selectedIndex);
+        return;
+      }
+      beep();
+      window.location.href = x.url;
+    }
+
+    function moveSelection(dx, dy){
+      const cols = window.matchMedia("(max-width: 720px)").matches ? 1 : 2;
+      const i = selectedIndex;
+      let ni = i;
+
+      if(cols === 1){
+        if(dy === -1) ni = Math.max(0, i-1);
+        if(dy ===  1) ni = Math.min(filtered.length-1, i+1);
+      }else{
+        // griglia 2 colonne
+        if(dx === -1) ni = (i%2===1) ? i-1 : i;
+        if(dx ===  1) ni = (i%2===0 && i+1<filtered.length) ? i+1 : i;
+        if(dy === -1) ni = Math.max(0, i-2);
+        if(dy ===  1) ni = Math.min(filtered.length-1, i+2);
+      }
+
+      if(ni !== i){
+        selectedIndex = ni;
+        beep();
+        renderGrid();
+      }
+    }
+
+    // ======= MODAL EDITOR =======
+    function showModal(show){
+      modalBack.style.display = show ? "flex" : "none";
+      if(show){
+        setTimeout(()=> mName.focus(), 0);
+      }
+    }
+
+    function openEditor(filteredIdx){
+      // mappiamo filtered index -> index reale in links
+      const item = filtered[filteredIdx];
+      const realIdx = links.indexOf(item);
+      editingIndex = (realIdx >= 0) ? realIdx : null;
+
+      if(editingIndex === null){
+        modalTitle.textContent = "AGGIUNGI LINK";
+        mCat.value = "APP";
+        mName.value = "";
+        mUrl.value = "";
+        mHint.value = "OPEN";
+        mDelete.style.display = "none";
+      }else{
+        modalTitle.textContent = "MODIFICA LINK";
+        const x = links[editingIndex];
+        mCat.value = x.cat || "APP";
+        mName.value = x.name || "";
+        mUrl.value = x.url || "";
+        mHint.value = x.hint || "OPEN";
+        mDelete.style.display = "inline-block";
+      }
+      showModal(true);
+    }
+
+    function closeEditor(){
+      showModal(false);
+      editingIndex = null;
+      q.focus();
+    }
+
+    mCancel.addEventListener("click", ()=>{ beep(); closeEditor(); });
+
+    mSave.addEventListener("click", ()=>{
+      beep();
+      const obj = {
+        cat: mCat.value,
+        name: (mName.value || "").trim().toUpperCase(),
+        url: sanitizeUrl(mUrl.value),
+        hint: (mHint.value || "OPEN").trim().toUpperCase()
+      };
+      if(!obj.name){
+        alert("Inserisci un NOME.");
+        return;
+      }
+      if(editingIndex === null){
+        links.push(obj);
+      }else{
+        links[editingIndex] = obj;
+      }
+      saveLinks();
+      applyFilter();
+      closeEditor();
+    });
+
+    mDelete.addEventListener("click", ()=>{
+      if(editingIndex === null) return;
+      const x = links[editingIndex];
+      const ok = confirm(`Eliminare "${x.name}"?`);
+      if(!ok) return;
+      beep();
+      links.splice(editingIndex,1);
+      saveLinks();
+      applyFilter();
+      closeEditor();
+    });
+
+    // ======= BUTTONS =======
+    btnEdit.addEventListener("click", ()=>{ beep(); openEditor(selectedIndex); });
+    btnAdd.addEventListener("click", ()=>{ beep(); editingIndex=null; openEditor(null); });
+    btnReset.addEventListener("click", ()=>{
+      const ok = confirm("Reset totale? Ripristino link di default e beep ON.");
+      if(!ok) return;
+      beep();
+      localStorage.removeItem(LS_KEY);
+      localStorage.removeItem(LS_BEEP);
+      loadLinks(); loadBeep();
+      selectedIndex = 0;
+      applyFilter();
+    });
+
+    // ======= INPUT EVENTS =======
+    q.addEventListener("input", ()=> applyFilter());
+    cat.addEventListener("change", ()=>{ beep(); applyFilter(); });
+
+    // ======= KEYBOARD =======
+    document.addEventListener("keydown", (e)=>{
+      const modalOpen = (modalBack.style.display === "flex");
+      if(modalOpen){
+        if(e.key === "Escape"){ e.preventDefault(); beep(); closeEditor(); }
+        return;
+      }
+
+      // / focus ricerca
+      if(e.key === "/"){
+        e.preventDefault();
+        beep();
+        q.focus();
+        return;
+      }
+
+      // toggle beep
+      if(e.key.toLowerCase() === "b"){
+        beepOn = !beepOn;
+        saveBeep();
+        renderBeepState();
+        beep();
+        return;
+      }
+
+      // editor
+      if(e.key.toLowerCase() === "e"){
+        e.preventDefault();
+        beep();
+        openEditor(selectedIndex);
+        return;
+      }
+
+      // enter apre
+      if(e.key === "Enter"){
+        e.preventDefault();
+        openSelected();
+        return;
+      }
+
+      // frecce
+      if(e.key === "ArrowLeft"){ e.preventDefault(); moveSelection(-1,0); }
+      if(e.key === "ArrowRight"){ e.preventDefault(); moveSelection(1,0); }
+      if(e.key === "ArrowUp"){ e.preventDefault(); moveSelection(0,-1); }
+      if(e.key === "ArrowDown"){ e.preventDefault(); moveSelection(0,1); }
+
+      // 1..9 aprono
+      if(/^[1-9]$/.test(e.key)){
+        const idx = parseInt(e.key,10) - 1;
+        if(idx < filtered.length){
+          selectedIndex = idx;
+          renderGrid();
+          openSelected();
+        }
+      }
+    });
+
+    // ======= INIT =======
+    loadLinks();
+    loadBeep();
+    applyFilter();
+  </script>
+</body>
+</html>
